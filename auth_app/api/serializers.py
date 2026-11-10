@@ -37,10 +37,36 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
     def save(self):
         """Create and save a new user account with the validated data."""
-        pw = self.validated_data['password']
+        try:
+            pw = self.validated_data['password']
+            account = User(email=self.validated_data['email'], username=self.validated_data['username'])
+            account.set_password(pw)
+            account.save()
+            return account
+        except KeyError:
+            raise serializers.ValidationError("Password is required")
 
+class LoginSerializer(serializers.ModelSerializer):
+    """Serializer for user login."""
+    class Meta:
+        model = User
+        fields = ['username', 'password']
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
 
-        account = User(email=self.validated_data['email'], username=self.validated_data['username'])
-        account.set_password(pw)
-        account.save()
-        return account
+    def validate(self, data):
+        username = data.get('username')
+        password = data.get('password')
+        if username and password:
+            try:
+                user = User.objects.get(username=username)
+            except User.DoesNotExist:
+                raise serializers.ValidationError("Invalid username or password")
+            if not user.check_password(password):
+                raise serializers.ValidationError("Invalid username or password")
+            data['user'] = user
+        return data
+
+    def save(self):
+        return self.validated_data['user']

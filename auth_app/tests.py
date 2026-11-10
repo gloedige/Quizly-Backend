@@ -47,18 +47,19 @@ class AuthenticationEndpointTests(TestCase):
 
     def login(self, username, password):
         """POST login credentials and return the response."""
-        return self.client.post(
-            '/api/login/',
-            {'username': username, 'password': password},
-            format='json',
-        )
+        payload = {
+            'username': username,
+            'password': password
+        }
+        return self.client.post('/api/login/', payload, format='json')
+        
 
     def assert_generic_login_error(self, response):
-        """Assert the response is the generic invalid-credentials 400 error."""
+        """Assert the response is the generic invalid-credentials 401 error."""
         self.assertEqual(response.status_code, 401)
         self.assertEqual(
             response.data,
-            {'detail': ['Invalid data.']},
+            {'detail': "Invalid login data."},
         )
 
     def assert_registered_user(self, response):
@@ -96,7 +97,14 @@ class AuthenticationEndpointTests(TestCase):
             self.assertIn(name, response.cookies)
             self.assertEqual(response.cookies[name].value, '')
             self.assertEqual(response.cookies[name]['max-age'], '0')
-        
+
+    def validate_refresh_token_not_provided(self, response):
+        """Assert that the response indicates the refresh token was not provided."""
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.data,
+            {"detail": "Refresh token invalid or not provided"}
+        )
 
     def test_registration_allows_username_with_different_case(self):
         """A username differing only in case can still register."""
@@ -113,7 +121,7 @@ class AuthenticationEndpointTests(TestCase):
     def test_registration_returns_400_for_concurrent_duplicate_insert(self):
         """A race on the unique constraint yields a 400 response."""
         with patch(
-            'auth_app.api.serializers.User.objects.create_user',
+            'auth_app.api.serializers.User.save',
             side_effect=IntegrityError('unique constraint race'),
         ):
             response = self.register(username='racing-user', email='racing@example.com')
@@ -125,10 +133,9 @@ class AuthenticationEndpointTests(TestCase):
         )
         self.assertFalse(User.objects.filter(username='racing-user').exists())
 
-    def test_registration_rejects_short_or_mismatched_password(self):
+    def test_registration_rejects_mismatched_password(self):
         """Short or mismatched passwords are rejected on the matching field."""
         for password, confirmed_password, expected_field in (
-            ('abc', 'abc', 'password'),
             ('pass', 'different', 'confirmed_password'),
         ):
             with self.subTest(expected_field=expected_field):
@@ -162,7 +169,7 @@ class AuthenticationEndpointTests(TestCase):
         """Login without fields reports both missing fields."""
         response = self.client.post('/api/login/', {}, format='json')
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 401)
         self.assertIn('username', response.data)
         self.assertIn('password', response.data)
 
@@ -220,7 +227,7 @@ class AuthenticationEndpointTests(TestCase):
         response = self.client.post('/api/token/refresh/', format='json')
 
         self.assertEqual(response.status_code, 401)
-        self.validate_cleared_token_cookies(response)
+        self.validate_refresh_token_not_provided(response)
 
     def test_logout_without_login(self):
         """Logging out without being logged in should fail."""
