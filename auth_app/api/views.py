@@ -10,6 +10,7 @@ from .serializers import RegistrationSerializer
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .permissions import RefreshTokenPermission
 from django.contrib.auth import get_user_model
+from .serializers import LoginSerializer
 
 
 PUBLIC_PERMISSIONS = (AllowAny,)
@@ -58,20 +59,20 @@ class RegistrationView(APIView):
 
 class CookieTokenObtainPairView(TokenObtainPairView):
     """API view for obtaining JWT tokens and setting them as HttpOnly cookies."""
-    from .serializers import LoginSerializer
     permission_classes = PUBLIC_PERMISSIONS
     serializer_class = LoginSerializer
 
-    def post(self, request, *args, **kwargs):
-        """Handle user login and set JWT tokens as HttpOnly cookies."""
-        serializer = self.get_serializer(data=request.data)
+    def get_valid_login_serializer(self, data):
+        serializer = self.get_serializer(data=data)
         try:
             serializer.is_valid(raise_exception=True)
         except AuthenticationFailed:
-            return Response(
-                {"detail": "Invalid login data."},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
+            raise AuthenticationFailed("Invalid login data.")
+        return serializer
+
+    def post(self, request, *args, **kwargs):
+        """Handle user login and set JWT tokens as HttpOnly cookies."""
+        serializer = self.get_valid_login_serializer(request.data)
 
         user = serializer.user
         response = Response(
@@ -85,11 +86,8 @@ class CookieTokenObtainPairView(TokenObtainPairView):
             },
             status=status.HTTP_200_OK,
         )
-        return set_auth_cookies(
-            response=response,
-            access_token=serializer.validated_data['access'],
-            new_refresh_token=serializer.validated_data['refresh']
-        )
+        data = serializer.validated_data
+        return set_auth_cookies(response, data['access'], data['refresh'])
 
 class CookieRefreshView(TokenRefreshView):
     """API view for refreshing JWT tokens using HttpOnly cookies."""
