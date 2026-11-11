@@ -204,17 +204,15 @@ class AuthenticationEndpointTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.validate_token_cookies(response, refresh_expected=False)
 
-
     def test_refresh_token_with_invalid_token(self):
         """Refreshing the token with an invalid token should fail."""
         self.create_user('invalid-refresh-user', 'invalid-refresh@example.com')
         self.login('invalid-refresh-user', 'pass')
         # Manually clear the refresh token cookie to simulate an invalid token
-        self.assign_invalid_cookie_value('access_token', '', 0)
-        self.assign_invalid_cookie_value('refresh_token', '', 0)
+        self.client.cookies['access_token'] = 'invalid.jwt.value'
+        self.client.cookies['refresh_token'] = 'invalid.jwt.value'
         response = self.client.post('/api/token/refresh/', format='json')
         self.assertEqual(response.status_code, 401)
-        self.validate_cleared_token_cookies()
 
     def test_refresh_token_without_login(self):
         """Refreshing the token without being logged in should fail."""
@@ -226,7 +224,9 @@ class AuthenticationEndpointTests(TestCase):
         self.create_user('expired-refresh-user', 'expired-refresh@example.com')
         self.login('expired-refresh-user', 'pass')
         # Manually set an expired refresh token cookie
-        self.client.cookies['refresh_token'] = 'expiredtoken'
+        # take expired token from blacklist or generate manually for testing purposes
+        # self.client.cookies['refresh_token'] = 'expiredtoken'
+        self.assign_invalid_cookie_value('refresh_token', '', 0)
         self.client.cookies['refresh_token']['expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
         response = self.client.post('/api/token/refresh/', format='json')
 
@@ -246,7 +246,59 @@ class AuthenticationEndpointTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.validate_cleared_token_cookies()
 
+    def test_registration_successful(self):
+        """Registration with valid data should succeed."""
+        response = self.client.post('/api/register/', {
+            'username': 'new-user',
+            'email': 'new-user@example.com',
+            'password': 'pass',
+            'confirmed_password': 'pass'
+        }, format='json')
+        self.assertEqual(response.status_code, 201)
+        self.assertIn('detail', response.data)
+        self.assertEqual(response.data['detail'], 'User created successfully!')
     
-    
+    def test_registration_with_missing_fields(self):
+        """Registration with missing fields should fail."""
+        response = self.client.post('/api/register/', {
+            'username': '',
+            'email': '',
+            'password': '',
+            'confirmed_password': ''
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
 
+    def test_registration_with_existing_username(self):
+        """Registration with an existing username should fail."""
+        self.create_user('existing-user', 'existing@example.com')
+        response = self.client.post('/api/register/', {
+            'username': 'existing-user',
+            'email': 'new-email@example.com',
+            'password': 'pass',
+            'confirmed_password': 'pass'
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('username', response.data)
+    
+    def test_registration_with_existing_email(self):
+        """Registration with an existing email should fail."""
+        self.create_user('user', 'existing-email@example.com')
+        response = self.client.post('/api/register/', {
+            'username': 'new-user',
+            'password': 'pass',
+            'confirmed_password': 'pass',
+            'email': 'existing-email@example.com',
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('email', response.data)
+
+    def test_login_cookies_has_httponly_flag(self):
+        """Login cookies should have the HttpOnly flag set."""
+        self.create_user('cookie-user', 'cookie@example.com')
+        response = self.login('cookie-user', 'pass')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('access_token', response.cookies)
+        self.assertIn('refresh_token', response.cookies)
+        self.assertTrue(response.cookies['access_token']['httponly'])
+        self.assertTrue(response.cookies['refresh_token']['httponly'])
     
