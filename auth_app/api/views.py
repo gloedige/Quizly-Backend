@@ -4,6 +4,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db import IntegrityError, transaction
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from .serializers import RegistrationSerializer
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .permissions import RefreshTokenPermission
@@ -93,7 +95,7 @@ class CookieRefreshView(TokenRefreshView):
         serializer = self.get_serializer(data={'refresh': refresh_token})
         try:
             serializer.is_valid(raise_exception=True)
-        except:
+        except (TokenError, AuthenticationFailed):
             return Response(
                 {"detail": "Refresh token invalid or not provided"}, 
                 status=status.HTTP_401_UNAUTHORIZED
@@ -111,11 +113,22 @@ class CookieRefreshView(TokenRefreshView):
                 secure=False, # TODO: Set to True in production with HTTPS
                 samesite='Lax')
 
+        new_refresh_token = serializer.validated_data.get('refresh')
+        if new_refresh_token:
+            response.set_cookie(
+                key='refresh_token',
+                value=new_refresh_token,
+                httponly=True,
+                secure=False, # TODO: Set to True in production with HTTPS
+                samesite='Lax'
+            )
+
         return response
 
 class CookieLogoutView(APIView):
     permission_classes = AUTHENTICATED_PERMISSIONS
     def post(self, request):
+        RefreshToken(request.COOKIES['refresh_token']).blacklist()
         response = Response(
             {"detail": "Log-Out successfully! All Tokens will be deleted. Refresh token is now invalid."}, 
             status=status.HTTP_200_OK)

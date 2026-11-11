@@ -1,4 +1,5 @@
 # Standard library
+from datetime import timedelta
 from unittest.mock import patch
 import os
 
@@ -8,13 +9,12 @@ from django.db import IntegrityError
 from django.test import TestCase
 
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 
-# Local imports
 from dotenv import load_dotenv
 
 load_dotenv()  # loads .env variables
-
-
 
 User = get_user_model()
 
@@ -37,12 +37,13 @@ class AuthenticationEndpointTests(TestCase):
         payload.update(overrides)
         return self.client.post('/api/register/', payload, format='json')
 
-    def create_user(self, username, email):
+    def create_user(self, username, email, is_active=True):
         """Create and return a user with password 'pass'."""
         return User.objects.create_user(
             username=username,
             email=email,
             password='pass',
+            is_active=is_active
         )
 
     def login(self, username, password):
@@ -110,6 +111,18 @@ class AuthenticationEndpointTests(TestCase):
         """Set the specified cookie to an invalid value."""
         self.client.cookies[name] = value
         self.client.cookies[name]['max-age'] = age
+  
+    def setUserInactive(self, username):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user = User.objects.get(username=username)
+        user.is_active = False
+        user.save()
+
+    def validate_refresh_token_on_blacklist(self, refresh_token):
+        """Assert that the refresh token is blacklisted."""
+        self.assertTrue(OutstandingToken.objects.filter(token=refresh_token).exists())
+        self.assertTrue(BlacklistedToken.objects.filter(token__token=refresh_token).exists())
 
     def test_registration_allows_username_with_different_case(self):
         """A username differing only in case can still register."""
@@ -220,18 +233,16 @@ class AuthenticationEndpointTests(TestCase):
         self.assertEqual(response.status_code, 401)
 
     def test_refresh_token_with_expired_token(self):
-        """Refreshing the token with an expired token should fail."""
-        self.create_user('expired-refresh-user', 'expired-refresh@example.com')
-        self.login('expired-refresh-user', 'pass')
-        # Manually set an expired refresh token cookie
-        # take expired token from blacklist or generate manually for testing purposes
-        # self.client.cookies['refresh_token'] = 'expiredtoken'
-        self.assign_invalid_cookie_value('refresh_token', '', 0)
-        self.client.cookies['refresh_token']['expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
+        """Reject a signed refresh JWT whose exp claim is in the past."""
+        user = self.create_user('expired-refresh-user', 'expired@example.com')
+        refresh_token = RefreshToken.for_user(user)
+        refresh_token.set_exp(lifetime=timedelta(seconds=-1))
+        self.client.cookies['refresh_token'] = str(refresh_token)
+
         response = self.client.post('/api/token/refresh/', format='json')
 
         self.assertEqual(response.status_code, 401)
-        self.validate_refresh_token_not_provided(response)
+        self.assertIn('detail', response.data)
 
     def test_logout_without_login(self):
         """Logging out without being logged in should fail."""
@@ -241,10 +252,14 @@ class AuthenticationEndpointTests(TestCase):
     def test_logout_with_login(self):
         """Logging out after being logged in should succeed."""
         self.create_user('logout-user', 'logout@example.com')
-        self.login('logout-user', 'pass')
+        login_response = self.login('logout-user', 'pass')
+        refresh_token = login_response.cookies['refresh_token'].value
+
         response = self.client.post('/api/logout/', format='json')
+        
         self.assertEqual(response.status_code, 200)
         self.validate_cleared_token_cookies()
+        self.validate_refresh_token_on_blacklist(refresh_token)
 
     def test_registration_successful(self):
         """Registration with valid data should succeed."""
@@ -301,4 +316,49 @@ class AuthenticationEndpointTests(TestCase):
         self.assertIn('refresh_token', response.cookies)
         self.assertTrue(response.cookies['access_token']['httponly'])
         self.assertTrue(response.cookies['refresh_token']['httponly'])
-    
+
+    def test_refresh_without_refresh_token(self):
+        """Refreshing without a refresh token should fail."""
+        response = self.client.post('/api/token/refresh/', {}, format='json')
+        self.assertEqual(response.status_code, 401)
+        self.assertIn('detail', response.data)
+
+    def test_refresh_with_malformed_refresh_token(self):
+        """A malformed refresh token should be rejected."""
+        self.client.cookies['refresh_token'] = 'expired-token'
+        response = self.client.post('/api/token/refresh/', {}, format='json')
+        self.assertEqual(response.status_code, 401)
+        self.assertIn('detail', response.data)
+
+    def test_refresh_with_valid_refresh_token(self):
+        """Refreshing with a valid refresh token should succeed."""
+        self.create_user('refresh-user', 'refresh@example.com')
+        login_response = self.login('refresh-user', 'pass')
+        refresh_token = login_response.cookies['refresh_token'].value
+        self.client.cookies['refresh_token'] = refresh_token
+        response = self.client.post('/api/token/refresh/', {}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('detail', response.data)
+        self.assertIn('access_token', response.cookies)
+        self.assertTrue(response.cookies['access_token']['httponly'])
+
+    def test_refresh_with_inactive_user_in_token(self):
+        """Refreshing with a refresh token for an inactive user should fail."""
+        self.create_user('active-user', 'active@example.com', is_active=True)
+        self.login('active-user', 'pass')
+        self.setUserInactive('active-user')
+        response = self.client.post('/api/token/refresh/', {}, format='json')
+        self.assertEqual(response.status_code, 401)
+        self.assertIn('detail', response.data)
+
+    def test_refresh_with_rotated_refresh_token(self):
+        """Refreshing should rotate the refresh token and blacklist the old one."""
+        self.create_user('rotate-user', 'rotate@example.com')
+        login_response = self.login('rotate-user', 'pass')
+        old_refresh_token = login_response.cookies['refresh_token'].value
+        self.client.cookies['refresh_token'] = old_refresh_token
+        response = self.client.post('/api/token/refresh/', {}, format='json')
+        self.assertEqual(response.status_code, 200)
+        new_refresh_token = response.cookies['refresh_token'].value
+        self.assertNotEqual(old_refresh_token, new_refresh_token)
+        self.validate_refresh_token_on_blacklist(old_refresh_token)
