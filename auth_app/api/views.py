@@ -16,15 +16,31 @@ PUBLIC_PERMISSIONS = (AllowAny,)
 AUTHENTICATED_PERMISSIONS = (IsAuthenticated,)
 REFRESH_PERMISSIONS = (RefreshTokenPermission,)
 
+def set_auth_cookies(response, access_token, new_refresh_token):
+    if access_token:
+        response.set_cookie(
+            key='access_token',
+            value=access_token,
+            httponly=True,
+            secure=True,
+            samesite='Lax'
+        )
+
+    if new_refresh_token:
+        response.set_cookie(
+            key='refresh_token',
+            value=new_refresh_token,
+            httponly=True,
+            secure=True,
+            samesite='Lax'
+        )
+    return response
+
 class RegistrationView(APIView):
-    """
-    API view for user registration.
-    """
+    """ API view for user registration. """
     permission_classes = PUBLIC_PERMISSIONS
     def post(self, request):
-        """
-        Handle user registration.
-        """
+        """Handle user registration."""
         serializer = RegistrationSerializer(data=request.data)
 
         if serializer.is_valid():
@@ -40,20 +56,14 @@ class RegistrationView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-
 class CookieTokenObtainPairView(TokenObtainPairView):
-    """
-    API view for obtaining JWT tokens and setting them as HttpOnly cookies.
-    """
+    """API view for obtaining JWT tokens and setting them as HttpOnly cookies."""
     from .serializers import LoginSerializer
     permission_classes = PUBLIC_PERMISSIONS
     serializer_class = LoginSerializer
 
     def post(self, request, *args, **kwargs):
-        """
-        Handle user login and set JWT tokens as HttpOnly cookies.
-        """
+        """Handle user login and set JWT tokens as HttpOnly cookies."""
         serializer = self.get_serializer(data=request.data)
         try:
             serializer.is_valid(raise_exception=True)
@@ -75,87 +85,60 @@ class CookieTokenObtainPairView(TokenObtainPairView):
             },
             status=status.HTTP_200_OK,
         )
-        response.set_cookie(
-            key='refresh_token',
-            value=serializer.validated_data['refresh'],
-            httponly=True,
-            secure=True,
-            samesite='Lax',
+        return set_auth_cookies(
+            response=response,
+            access_token=serializer.validated_data['access'],
+            new_refresh_token=serializer.validated_data['refresh']
         )
-        response.set_cookie(
-            key='access_token',
-            value=serializer.validated_data['access'],
-            httponly=True,
-            secure=True,
-            samesite='Lax',
-        )
-        return response
-
 
 class CookieRefreshView(TokenRefreshView):
-    """
-    API view for refreshing JWT tokens using HttpOnly cookies.
-    """
+    """API view for refreshing JWT tokens using HttpOnly cookies."""
     permission_classes = PUBLIC_PERMISSIONS
     
     def post(self, request, *args, **kwargs):
-        """
-        Handle refreshing of JWT tokens using the refresh token from HttpOnly cookies.
-        """
+        """Handle refreshing of JWT tokens using the refresh token from HttpOnly cookies."""
         refresh_token = request.COOKIES.get('refresh_token')
 
         if refresh_token is None:
-            return Response(
-                {"detail": "Refresh token invalid or not provided"}, 
-                status=status.HTTP_401_UNAUTHORIZED
-                )
+            return self.respond_with_token_error()
         
-        serializer = self.get_serializer(data={'refresh': refresh_token})
-        try:
-            token = RefreshToken(refresh_token)
-            user_id = token.payload.get('user_id')
-            if not get_user_model().objects.filter(pk=user_id, is_active=True).exists():
-                raise TokenError('User is inactive')
-            serializer.is_valid(raise_exception=True)
-        except (TokenError, AuthenticationFailed):
-            return Response(
-                {"detail": "Refresh token invalid or not provided"}, 
-                status=status.HTTP_401_UNAUTHORIZED
-                )
-
-        access_token = serializer.validated_data.get('access')
+        serializer = self.get_valid_refresh_serializer(refresh_token)
+        if serializer is None:
+            return self.respond_with_token_error()
 
         response = Response({"detail": "Token refreshed"}, status=status.HTTP_200_OK)
+        data = serializer.validated_data
+        return set_auth_cookies(response, data.get('access'), data.get('refresh'))
 
-        if access_token:
-            response.set_cookie(
-                key='access_token',
-                value=access_token,
-                httponly=True,
-                secure=True,
-                samesite='Lax')
+    def get_valid_refresh_serializer(self, token):
+        """Validate refresh token and return its serializer, or None."""
+        serializer = self.get_serializer(data={'refresh': token})
+        try:
+            self.check_user_active(token)
+            serializer.is_valid(raise_exception=True)
+        except (TokenError, AuthenticationFailed):
+            return None
+        return serializer
 
-        new_refresh_token = serializer.validated_data.get('refresh')
-        if new_refresh_token:
-            response.set_cookie(
-                key='refresh_token',
-                value=new_refresh_token,
-                httponly=True,
-                secure=True,
-                samesite='Lax'
-            )
+    def respond_with_token_error(self):
+        """Respond with a token error indicating the refresh token is invalid or not provided."""
+        return Response(
+                {"detail": "Refresh token invalid or not provided"}, 
+                status=status.HTTP_401_UNAUTHORIZED
+                )
 
-        return response
+    def check_user_active(self, refresh_token):
+        """Check if the user associated with the refresh token is active."""
+        token = RefreshToken(refresh_token)
+        user_id = token.payload.get('user_id')
+        if not get_user_model().objects.filter(pk=user_id, is_active=True).exists():
+            raise TokenError('User is inactive')
 
 class CookieLogoutView(APIView):
-    """
-    API view for logging out users by blacklisting the refresh token and deleting cookies.
-    """
+    """API view for logging out users by blacklisting the refresh token and deleting cookies."""
     permission_classes = AUTHENTICATED_PERMISSIONS
     def post(self, request):
-        """
-        Handle user logout by blacklisting the refresh token and deleting HttpOnly cookies.
-        """
+        """Handle user logout by blacklisting the refresh token and deleting HttpOnly cookies."""
         RefreshToken(request.COOKIES['refresh_token']).blacklist()
         response = Response(
             {"detail": "Log-Out successfully! All Tokens will be deleted. Refresh token is now invalid."}, 
