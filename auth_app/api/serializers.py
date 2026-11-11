@@ -1,5 +1,10 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
+from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+from django.contrib.auth import authenticate
 
 
 class RegistrationSerializer(serializers.ModelSerializer):
@@ -46,7 +51,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
         except KeyError:
             raise serializers.ValidationError("Password is required")
 
-class LoginSerializer(serializers.ModelSerializer):
+class LoginSerializer(TokenObtainPairSerializer):
     """Serializer for user login."""
     class Meta:
         model = User
@@ -55,18 +60,17 @@ class LoginSerializer(serializers.ModelSerializer):
             'password': {'write_only': True}
         }
 
+    def __init__(self, *args, **kwargs):
+        """Make credentials optional at field level for custom missing-field validation."""
+        super().__init__(*args, **kwargs)
+        self.fields['username'].required = False
+        self.fields['password'].required = False
+
     def validate(self, data):
         username = data.get('username')
         password = data.get('password')
-        if username and password:
-            try:
-                user = User.objects.get(username=username)
-            except User.DoesNotExist:
-                raise serializers.ValidationError("Invalid username or password")
-            if not user.check_password(password):
-                raise serializers.ValidationError("Invalid username or password")
-            data['user'] = user
-        return data
 
-    def save(self):
-        return self.validated_data['user']
+        if not username or not password:
+            raise AuthenticationFailed("Username and password are required")
+
+        return super().validate(data)

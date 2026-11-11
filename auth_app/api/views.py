@@ -35,7 +35,9 @@ class RegistrationView(APIView):
 
 
 class CookieTokenObtainPairView(TokenObtainPairView):
+    from .serializers import LoginSerializer
     permission_classes = PUBLIC_PERMISSIONS
+    serializer_class = LoginSerializer
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -77,14 +79,14 @@ class CookieTokenObtainPairView(TokenObtainPairView):
 
 
 class CookieRefreshView(TokenRefreshView):
-    permission_classes = REFRESH_PERMISSIONS
+    permission_classes = PUBLIC_PERMISSIONS
     
     def post(self, request, *args, **kwargs):
         refresh_token = request.COOKIES.get('refresh_token')
 
         if refresh_token is None:
             return Response(
-                {"detail": "Refresh Token invalid or not provided"}, 
+                {"detail": "Refresh token invalid or not provided"}, 
                 status=status.HTTP_401_UNAUTHORIZED
                 )
         
