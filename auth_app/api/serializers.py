@@ -67,6 +67,9 @@ class LoginSerializer(TokenObtainPairSerializer):
         self.fields['password'].required = False
 
     def validate(self, data):
+        """
+        Validate the login credentials.
+        """
         username = data.get('username')
         password = data.get('password')
 

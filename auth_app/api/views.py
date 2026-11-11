@@ -16,8 +16,14 @@ AUTHENTICATED_PERMISSIONS = (IsAuthenticated,)
 REFRESH_PERMISSIONS = (RefreshTokenPermission,)
 
 class RegistrationView(APIView):
+    """
+    API view for user registration.
+    """
     permission_classes = PUBLIC_PERMISSIONS
     def post(self, request):
+        """
+        Handle user registration.
+        """
         serializer = RegistrationSerializer(data=request.data)
 
         if serializer.is_valid():
@@ -30,18 +36,23 @@ class RegistrationView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             return Response({"detail": "User created successfully!"}, status=status.HTTP_201_CREATED)
-        
-        # Implement registration logic here
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 
 class CookieTokenObtainPairView(TokenObtainPairView):
+    """
+    API view for obtaining JWT tokens and setting them as HttpOnly cookies.
+    """
     from .serializers import LoginSerializer
     permission_classes = PUBLIC_PERMISSIONS
     serializer_class = LoginSerializer
 
     def post(self, request, *args, **kwargs):
+        """
+        Handle user login and set JWT tokens as HttpOnly cookies.
+        """
         serializer = self.get_serializer(data=request.data)
         try:
             serializer.is_valid(raise_exception=True)
@@ -67,23 +78,29 @@ class CookieTokenObtainPairView(TokenObtainPairView):
             key='refresh_token',
             value=serializer.validated_data['refresh'],
             httponly=True,
-            secure=False,
+            secure=True,
             samesite='Lax',
         )
         response.set_cookie(
             key='access_token',
             value=serializer.validated_data['access'],
             httponly=True,
-            secure=False,
+            secure=True,
             samesite='Lax',
         )
         return response
 
 
 class CookieRefreshView(TokenRefreshView):
+    """
+    API view for refreshing JWT tokens using HttpOnly cookies.
+    """
     permission_classes = PUBLIC_PERMISSIONS
     
     def post(self, request, *args, **kwargs):
+        """
+        Handle refreshing of JWT tokens using the refresh token from HttpOnly cookies.
+        """
         refresh_token = request.COOKIES.get('refresh_token')
 
         if refresh_token is None:
@@ -103,14 +120,14 @@ class CookieRefreshView(TokenRefreshView):
 
         access_token = serializer.validated_data.get('access')
 
-        response = Response({"detail": "Token refreshed"})
+        response = Response({"detail": "Token refreshed"}, status=status.HTTP_200_OK)
 
         if access_token:
             response.set_cookie(
                 key='access_token',
                 value=access_token,
                 httponly=True,
-                secure=False, # TODO: Set to True in production with HTTPS
+                secure=True,
                 samesite='Lax')
 
         new_refresh_token = serializer.validated_data.get('refresh')
@@ -119,15 +136,21 @@ class CookieRefreshView(TokenRefreshView):
                 key='refresh_token',
                 value=new_refresh_token,
                 httponly=True,
-                secure=False, # TODO: Set to True in production with HTTPS
+                secure=True,
                 samesite='Lax'
             )
 
         return response
 
 class CookieLogoutView(APIView):
+    """
+    API view for logging out users by blacklisting the refresh token and deleting cookies.
+    """
     permission_classes = AUTHENTICATED_PERMISSIONS
     def post(self, request):
+        """
+        Handle user logout by blacklisting the refresh token and deleting HttpOnly cookies.
+        """
         RefreshToken(request.COOKIES['refresh_token']).blacklist()
         response = Response(
             {"detail": "Log-Out successfully! All Tokens will be deleted. Refresh token is now invalid."}, 
