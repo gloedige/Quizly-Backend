@@ -137,7 +137,10 @@ class CookieLogoutView(APIView):
     permission_classes = AUTHENTICATED_PERMISSIONS
     def post(self, request):
         """Handle user logout by blacklisting the refresh token and deleting HttpOnly cookies."""
-        RefreshToken(request.COOKIES['refresh_token']).blacklist()
+        try: 
+            RefreshToken(request.COOKIES.get('refresh_token')).blacklist()
+        except TokenError:
+            pass
         response = Response(
             {"detail": "Log-Out successfully! All Tokens will be deleted. Refresh token is now invalid."}, 
             status=status.HTTP_200_OK)
