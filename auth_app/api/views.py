@@ -9,6 +9,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from .serializers import RegistrationSerializer
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .permissions import RefreshTokenPermission
+from django.contrib.auth import get_user_model
 
 
 PUBLIC_PERMISSIONS = (AllowAny,)
@@ -111,6 +112,10 @@ class CookieRefreshView(TokenRefreshView):
         
         serializer = self.get_serializer(data={'refresh': refresh_token})
         try:
+            token = RefreshToken(refresh_token)
+            user_id = token.payload.get('user_id')
+            if not get_user_model().objects.filter(pk=user_id, is_active=True).exists():
+                raise TokenError('User is inactive')
             serializer.is_valid(raise_exception=True)
         except (TokenError, AuthenticationFailed):
             return Response(
