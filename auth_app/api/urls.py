@@ -1,4 +1,7 @@
+# Third-party
 from django.urls import path
+
+# Local imports
 from . import views
 from .views import RegistrationView, CookieRefreshView, CookieTokenObtainPairView, CookieLogoutView
 

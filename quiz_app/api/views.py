@@ -1,8 +1,10 @@
+# Third-party
 from django.db import transaction
 from rest_framework import serializers, status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+# Local imports
 from quiz_app.api.permissions import IsQuizOwner
 from quiz_app.api.serializers import (
     GeneratedQuizSerializer,

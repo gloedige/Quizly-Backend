@@ -1,5 +1,7 @@
+# Third-party
 from django.contrib import admin
 
+# Local imports
 from quiz_app.models import Question, Quiz
 
 

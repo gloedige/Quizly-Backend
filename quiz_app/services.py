@@ -1,11 +1,12 @@
 """YouTube processing and Gemini quiz-generation services."""
+# Standard library
 import json
 import os
 import re
 import tempfile
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
 from threading import Lock
+from urllib.parse import parse_qs, urlparse
 
 
 QUIZ_PROMPT = """Based on the following transcript, generate a quiz in valid JSON format.
