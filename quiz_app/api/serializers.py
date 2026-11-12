@@ -1,5 +1,7 @@
+# Third-party
 from rest_framework import serializers
 
+# Local imports
 from quiz_app.models import Question, Quiz
 from quiz_app.services import canonicalize_youtube_url
 

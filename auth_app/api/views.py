@@ -1,18 +1,19 @@
-from rest_framework.views import APIView
-from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.response import Response
-from rest_framework import status
-from django.db import IntegrityError, transaction
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
-from rest_framework_simplejwt.exceptions import TokenError
-from .serializers import RegistrationSerializer
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from .permissions import RefreshTokenPermission
+# Third-party
 from django.contrib.auth import get_user_model
-from .serializers import LoginSerializer
+from django.db import IntegrityError, transaction
+from rest_framework import status
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+# Local imports
 from auth_app.api.authentication import CookieJWTAuthentication
+from .permissions import RefreshTokenPermission
+from .serializers import LoginSerializer, RegistrationSerializer
 
 
 PUBLIC_PERMISSIONS = (AllowAny,)

@@ -1,5 +1,7 @@
+# Third-party
 from rest_framework.routers import SimpleRouter
 
+# Local imports
 from quiz_app.api.views import QuizViewSet
 
 

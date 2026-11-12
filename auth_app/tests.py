@@ -1,18 +1,16 @@
 # Standard library
+import os
 from datetime import timedelta
 from unittest.mock import patch
-import os
 
 # Third-party
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.test import TestCase
-
+from dotenv import load_dotenv
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
-
-from dotenv import load_dotenv
 
 load_dotenv()  # loads .env variables
 

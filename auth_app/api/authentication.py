@@ -1,8 +1,11 @@
+# Standard library
 from datetime import datetime, timezone
 
+# Third-party
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+# Local imports
 from auth_app.models import AccessTokenStorage
 
 class CookieJWTAuthentication(JWTAuthentication):
