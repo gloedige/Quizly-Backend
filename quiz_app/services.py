@@ -29,7 +29,7 @@ Transcript:
 """
 YOUTUBE_ID_PATTERN = re.compile(r'^[A-Za-z0-9_-]{11}$')
 
-MAX_VIDEO_LENGTH = '00:10:00'
+MAX_VIDEO_LENGTH = '600'  # in seconds, e.g., 600 seconds = 10 minutes
 MAX_VIDEO_SIZE = '30M'
 
 _WHISPER_MODELS = {}
@@ -74,11 +74,11 @@ def _download_audio(youtube_url, temp_directory):
 
     template = str(Path(temp_directory) / 'source.%(ext)s')
     options = {
-                'format': f'bestaudio[filesize<{MAX_VIDEO_SIZE}]/bestaudio/best', 
+                'format': f'bestaudio[filesize<{MAX_VIDEO_SIZE}]/bestaudio[filesize_approx<{MAX_VIDEO_SIZE}]',
                 'outtmpl': template, 
                 'quiet': True, 
                 'noplaylist': True,
-                'duration': MAX_VIDEO_LENGTH
+                'match_filter': yt_dlp.utils.match_filter_func(f'duration <= {MAX_VIDEO_LENGTH}'),
             }
     with yt_dlp.YoutubeDL(options) as downloader:
         downloader.download([youtube_url])
