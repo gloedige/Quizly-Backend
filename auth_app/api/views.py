@@ -4,13 +4,15 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db import IntegrityError, transaction
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 from rest_framework_simplejwt.exceptions import TokenError
 from .serializers import RegistrationSerializer
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .permissions import RefreshTokenPermission
 from django.contrib.auth import get_user_model
 from .serializers import LoginSerializer
+
+from auth_app.api.authentication import CookieJWTAuthentication
 
 
 PUBLIC_PERMISSIONS = (AllowAny,)
@@ -135,15 +137,30 @@ class CookieRefreshView(TokenRefreshView):
 class CookieLogoutView(APIView):
     """API view for logging out users by blacklisting the refresh token and deleting cookies."""
     permission_classes = AUTHENTICATED_PERMISSIONS
+
+    def authenticate_access_cookie(self, request):
+        """Validate the access cookie and return its verified JWT payload."""
+        result = CookieJWTAuthentication().authenticate_access_cookie(request)
+        if result is None:
+            raise AuthenticationFailed('Access token is required.')
+        return result[1]
+
     def post(self, request):
         """Handle user logout by blacklisting the refresh token and deleting HttpOnly cookies."""
-        try: 
-            RefreshToken(request.COOKIES.get('refresh_token')).blacklist()
-        except TokenError:
-            pass
+        access_token = self.authenticate_access_cookie(request)
+        self.blacklist_refresh_cookie(request.COOKIES.get('refresh_token'))
+        CookieJWTAuthentication().store_access_token_in_custom_storage(access_token)
+        CookieJWTAuthentication().clear_deprecated_access_token()
         response = Response(
             {"detail": "Log-Out successfully! All Tokens will be deleted. Refresh token is now invalid."}, 
             status=status.HTTP_200_OK)
         response.delete_cookie('access_token')
         response.delete_cookie('refresh_token')
         return response
+
+    def blacklist_refresh_cookie(self, refresh_token):
+        """Blacklist a valid refresh cookie; tolerate its absence or invalidity."""
+        try:
+            RefreshToken(refresh_token).blacklist()
+        except TokenError:
+            return None

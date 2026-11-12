@@ -254,12 +254,25 @@ class AuthenticationEndpointTests(TestCase):
         self.create_user('logout-user', 'logout@example.com')
         login_response = self.login('logout-user', 'pass')
         refresh_token = login_response.cookies['refresh_token'].value
+        access_token = login_response.cookies['access_token'].value
 
         response = self.client.post('/api/logout/', format='json')
         
         self.assertEqual(response.status_code, 200)
         self.validate_cleared_token_cookies()
         self.validate_refresh_token_on_blacklist(refresh_token)
+        self.client.cookies['access_token'] = access_token
+        replay_response = self.client.get('/api/quizzes/')
+        self.assertEqual(replay_response.status_code, 401)
+
+    def test_logout_validates_access_cookie_even_with_authorization_header(self):
+        """A valid bearer token must not mask a malformed access cookie at logout."""
+        self.create_user('logout-header-user', 'logout-header@example.com')
+        login_response = self.login('logout-header-user', 'pass')
+        access_token = login_response.cookies['access_token'].value
+        self.client.cookies['access_token'] = 'malformed.jwt.cookie'
+        response = self.client.post('/api/logout/', HTTP_AUTHORIZATION=f'Bearer {access_token}')
+        self.assertEqual(response.status_code, 401)
 
     def test_registration_successful(self):
         """Registration with valid data should succeed."""
