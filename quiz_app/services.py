@@ -1,12 +1,10 @@
 """YouTube processing and Gemini quiz-generation services."""
-
 import json
 import os
 import re
 import tempfile
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
-import whisper
 from threading import Lock
 
 
@@ -31,6 +29,8 @@ YOUTUBE_ID_PATTERN = re.compile(r'^[A-Za-z0-9_-]{11}$')
 
 MAX_VIDEO_LENGTH = '600'  # in seconds, e.g., 600 seconds = 10 minutes
 MAX_VIDEO_SIZE = '30M'
+
+AI_MODEL_VERSION = 'gemini-3.8-flash'
 
 _WHISPER_MODELS = {}
 _MODEL_LOAD_LOCK = Lock()
@@ -93,6 +93,7 @@ def _find_downloaded_audio(temp_directory):
     return files[0]
 
 def _get_whisper_model(model_name):
+    import whisper
     """Get a Whisper model instance, loading it if necessary."""
     with _MODEL_LOAD_LOCK:
         if model_name not in _WHISPER_MODELS:
@@ -117,7 +118,7 @@ def _generate_with_gemini(transcript):
         raise RuntimeError('GEMINI_API_KEY is not configured.')
     client = genai.Client(api_key=api_key)
     result = client.models.generate_content(
-        model=os.getenv('GEMINI_MODEL', 'gemini-2.5-flash'),
+        model=os.getenv('GEMINI_MODEL', AI_MODEL_VERSION),
         contents=QUIZ_PROMPT.replace('{transcript}', transcript),
     )
     return _parse_gemini_json(result.text or '')
