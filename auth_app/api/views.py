@@ -150,6 +150,7 @@ class CookieLogoutView(APIView):
         access_token = self.authenticate_access_cookie(request)
         self.blacklist_refresh_cookie(request.COOKIES.get('refresh_token'))
         CookieJWTAuthentication().store_access_token_in_custom_storage(access_token)
+        CookieJWTAuthentication().clear_deprecated_access_token()
         response = Response(
             {"detail": "Log-Out successfully! All Tokens will be deleted. Refresh token is now invalid."}, 
             status=status.HTTP_200_OK)
