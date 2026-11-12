@@ -6,6 +6,8 @@ import re
 import tempfile
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+import whisper
+from threading import Lock
 
 
 QUIZ_PROMPT = """Based on the following transcript, generate a quiz in valid JSON format.
@@ -27,6 +29,12 @@ Transcript:
 """
 YOUTUBE_ID_PATTERN = re.compile(r'^[A-Za-z0-9_-]{11}$')
 
+MAX_VIDEO_LENGTH = '00:10:00'
+MAX_VIDEO_SIZE = '30M'
+
+_WHISPER_MODELS = {}
+_MODEL_LOAD_LOCK = Lock()
+_TRANSCRIPTION_LOCK = Lock()
 
 def canonicalize_youtube_url(value):
     """Validate common YouTube URL forms and return the canonical watch URL."""
@@ -65,7 +73,13 @@ def _download_audio(youtube_url, temp_directory):
     import yt_dlp
 
     template = str(Path(temp_directory) / 'source.%(ext)s')
-    options = {'format': 'bestaudio/best', 'outtmpl': template, 'quiet': True, 'noplaylist': True}
+    options = {
+                'format': f'bestaudio[filesize<{MAX_VIDEO_SIZE}]/bestaudio/best', 
+                'outtmpl': template, 
+                'quiet': True, 
+                'noplaylist': True,
+                'duration': MAX_VIDEO_LENGTH
+            }
     with yt_dlp.YoutubeDL(options) as downloader:
         downloader.download([youtube_url])
     return str(_find_downloaded_audio(temp_directory))
@@ -78,14 +92,21 @@ def _find_downloaded_audio(temp_directory):
         raise RuntimeError('YouTube audio download produced no file.')
     return files[0]
 
+def _get_whisper_model(model_name):
+    """Get a Whisper model instance, loading it if necessary."""
+    with _MODEL_LOAD_LOCK:
+        if model_name not in _WHISPER_MODELS:
+            _WHISPER_MODELS[model_name] = whisper.load_model(model_name)
+
+        return _WHISPER_MODELS[model_name]
 
 def _transcribe_audio(audio_path):
     """Transcribe a local audio file with Whisper."""
-    import whisper
+    model_name = os.getenv('WHISPER_MODEL', 'base')
+    model = _get_whisper_model(model_name)
 
-    model = whisper.load_model(os.getenv('WHISPER_MODEL', 'base'))
-    return model.transcribe(audio_path)['text']
-
+    with _TRANSCRIPTION_LOCK:
+        return model.transcribe(audio_path)['text']
 
 def _generate_with_gemini(transcript):
     """Request quiz JSON from Gemini Flash and parse its response."""
