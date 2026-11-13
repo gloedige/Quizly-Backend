@@ -21,6 +21,8 @@ class QuizViewSet(viewsets.ModelViewSet):
     serializer_class = QuizSerializer
     permission_classes = [IsAuthenticated, IsQuizOwner]
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+    queryset = Quiz.objects.all()
+    
 
     def get_queryset(self):
         """List only owned quizzes and use object permissions for detail actions."""

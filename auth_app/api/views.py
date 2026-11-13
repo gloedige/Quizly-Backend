@@ -7,6 +7,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
@@ -41,6 +42,8 @@ def set_auth_cookies(response, access_token, new_refresh_token):
 class RegistrationView(APIView):
     """ API view for user registration. """
     permission_classes = PUBLIC_PERMISSIONS
+    authentication_classes = (CookieJWTAuthentication,)
+
     def post(self, request):
         """Handle user registration."""
         serializer = RegistrationSerializer(data=request.data)
@@ -62,6 +65,7 @@ class CookieTokenObtainPairView(TokenObtainPairView):
     """API view for obtaining JWT tokens and setting them as HttpOnly cookies."""
     permission_classes = PUBLIC_PERMISSIONS
     serializer_class = LoginSerializer
+    authentication_classes = (CookieJWTAuthentication,)
 
     def get_valid_login_serializer(self, data):
         serializer = self.get_serializer(data=data)
@@ -93,6 +97,8 @@ class CookieTokenObtainPairView(TokenObtainPairView):
 class CookieRefreshView(TokenRefreshView):
     """API view for refreshing JWT tokens using HttpOnly cookies."""
     permission_classes = PUBLIC_PERMISSIONS
+    authentication_classes = (CookieJWTAuthentication,)
+    serializer_class = TokenRefreshSerializer
     
     def post(self, request, *args, **kwargs):
         """Handle refreshing of JWT tokens using the refresh token from HttpOnly cookies."""
@@ -136,6 +142,7 @@ class CookieRefreshView(TokenRefreshView):
 class CookieLogoutView(APIView):
     """API view for logging out users by blacklisting the refresh token and deleting cookies."""
     permission_classes = AUTHENTICATED_PERMISSIONS
+    authentication_classes = (CookieJWTAuthentication,)
 
     def authenticate_access_cookie(self, request):
         """Validate the access cookie and return its verified JWT payload."""
