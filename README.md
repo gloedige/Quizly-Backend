@@ -186,7 +186,7 @@ Clone and serve the [separate frontend](https://github.com/Developer-Akademie-Ba
 
 If your frontend version provides a guest login, create a corresponding user separately and adjust that version's guest-login configuration. Do not publish real credentials. The desired frontend page size is `PAGE_SIZE = 3`; check your frontend version before adding or using this setting. The backend does not currently configure pagination.
 
-The frontend and API may run on different origins. The current backend is configure CORS; Browser requests using the usual origins should work without CORS errors. Otherwise, the CORS_ALLOWED_ORIGINS rule in settings.py needs to be extended. See the [authentication notes](#authentication) for cookie requirements.
+The frontend and API may run on different origins. The current backend is configured for CORS; browser requests from the usual origins should work without CORS errors. Otherwise, the CORS_ALLOWED_ORIGINS setting in settings.py needs to be extended. See the [authentication notes](#authentication) for cookie requirements.
 
 ## Authentication
 
