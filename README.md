@@ -163,11 +163,11 @@ copy .env.template .env
 
 2. Open the newly created .env file and insert your actual credentials:
 
-# Django Secret Key 
-DJANGO_SECRET_KEY=dein_django_secret_key_hier_einfügen
+	# Django Secret Key 
+	DJANGO_SECRET_KEY=dein_django_secret_key_hier_einfügen
 
-# Gemini API Key for quiz generation
-GEMINI_API_KEY=dein_gemini_api_key_hier_einfügen
+	# Gemini API Key for quiz generation
+	GEMINI_API_KEY=dein_gemini_api_key_hier_einfügen
 
 `GEMINI_API_KEY` is required for quiz generation. Never commit API keys or real credentials; `.env` is ignored by Git. Model availability and API access depend on your Google account.
 
@@ -186,7 +186,7 @@ Clone and serve the [separate frontend](https://github.com/Developer-Akademie-Ba
 
 If your frontend version provides a guest login, create a corresponding user separately and adjust that version's guest-login configuration. Do not publish real credentials. The desired frontend page size is `PAGE_SIZE = 3`; check your frontend version before adding or using this setting. The backend does not currently configure pagination.
 
-The frontend and API may run on different origins. The current backend does not configure CORS; browser requests from a separate origin therefore need appropriate CORS and credential settings, or a suitable same-origin reverse proxy. See the [authentication notes](#authentication) for cookie requirements.
+The frontend and API may run on different origins. The current backend is configure CORS; Browser requests using the usual origins should work without CORS errors. Otherwise, the CORS_ALLOWED_ORIGINS rule in settings.py needs to be extended. See the [authentication notes](#authentication) for cookie requirements.
 
 ## Authentication
 
