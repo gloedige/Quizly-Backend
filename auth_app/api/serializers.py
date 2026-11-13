@@ -24,20 +24,21 @@ class RegistrationSerializer(serializers.ModelSerializer):
         if User.objects.filter(username=value).exists():
             raise serializers.ValidationError('This username is already in use.')
         return value
-
-    def validate_confirmed_password(self, value):
-        """Ensure the confirmed password matches the original password."""
-        password = self.initial_data.get('password')
-        if password and value and value != password:
-            raise serializers.ValidationError("Passwords do not match")
-        return value
-
+    
     def validate_email(self, value):
         """Trim and normalize the email, and reject duplicates."""
         value = value.strip().lower()
         if User.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError("Email is already in use")
         return value
+
+    def validate(self, attrs):
+        """Ensure the confirmed password matches the original password."""
+        password = attrs.get('password')
+        confirmed_password = attrs.get('confirmed_password')
+        if password and confirmed_password and password != confirmed_password:
+            raise serializers.ValidationError("Passwords do not match")
+        return attrs
 
     def save(self):
         """Create and save a new user account with the validated data."""
@@ -65,14 +66,14 @@ class LoginSerializer(TokenObtainPairSerializer):
         self.fields['username'].required = False
         self.fields['password'].required = False
 
-    def validate(self, data):
+    def validate(self, attrs):
         """
         Validate the login credentials.
         """
-        username = data.get('username')
-        password = data.get('password')
+        username = attrs.get('username')
+        password = attrs.get('password')
 
         if not username or not password:
             raise AuthenticationFailed("Username and password are required")
 
-        return super().validate(data)
+        return super().validate(attrs)

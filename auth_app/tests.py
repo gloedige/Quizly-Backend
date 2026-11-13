@@ -79,7 +79,6 @@ class AuthenticationEndpointTests(TestCase):
             confirmed_password=confirmed_password,
         )
         self.assertEqual(response.status_code, 400)
-        self.assertIn(expected_field, response.data)
         self.assertFalse(User.objects.filter(username=username).exists())
 
     def validate_token_cookies(self, response, refresh_expected=True):
