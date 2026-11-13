@@ -7,18 +7,16 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 # Local imports
 from auth_app.api.authentication import CookieJWTAuthentication
-from .permissions import RefreshTokenPermission
 from .serializers import LoginSerializer, RegistrationSerializer
 
 
 PUBLIC_PERMISSIONS = (AllowAny,)
 AUTHENTICATED_PERMISSIONS = (IsAuthenticated,)
-REFRESH_PERMISSIONS = (RefreshTokenPermission,)
 
 def set_auth_cookies(response, access_token, new_refresh_token):
     if access_token:
