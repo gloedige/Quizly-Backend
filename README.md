@@ -163,11 +163,12 @@ copy .env.template .env
 
 2. Open the newly created .env file and insert your actual credentials:
 
-	# Django Secret Key 
-	DJANGO_SECRET_KEY=dein_django_secret_key_hier_einfügen
-
-	# Gemini API Key for quiz generation
-	GEMINI_API_KEY=dein_gemini_api_key_hier_einfügen
+```bash
+# Django Secret Key 
+DJANGO_SECRET_KEY=dein_django_secret_key_hier_einfügen
+# Gemini API Key for quiz generation
+GEMINI_API_KEY=dein_gemini_api_key_hier_einfügen
+```
 
 `GEMINI_API_KEY` is required for quiz generation. Never commit API keys or real credentials; `.env` is ignored by Git. Model availability and API access depend on your Google account.
 
