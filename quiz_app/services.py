@@ -8,7 +8,6 @@ from pathlib import Path
 from threading import Lock
 from urllib.parse import parse_qs, urlparse
 
-
 QUIZ_PROMPT = """Based on the following transcript, generate a quiz in valid JSON format.
 The quiz must follow this exact structure:
 {
@@ -94,8 +93,8 @@ def _find_downloaded_audio(temp_directory):
     return files[0]
 
 def _get_whisper_model(model_name):
-    import whisper
     """Get a Whisper model instance, loading it if necessary."""
+    import whisper
     with _MODEL_LOAD_LOCK:
         if model_name not in _WHISPER_MODELS:
             _WHISPER_MODELS[model_name] = whisper.load_model(model_name)
@@ -113,7 +112,6 @@ def _transcribe_audio(audio_path):
 def _generate_with_gemini(transcript):
     """Request quiz JSON from Gemini Flash and parse its response."""
     from google import genai
-
     api_key = os.getenv('GEMINI_API_KEY')
     if not api_key:
         raise RuntimeError('GEMINI_API_KEY is not configured.')

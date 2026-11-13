@@ -4,10 +4,10 @@ from datetime import timedelta
 from unittest.mock import patch
 
 # Third-party
+from dotenv import load_dotenv
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.test import TestCase
-from dotenv import load_dotenv
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
@@ -79,7 +79,7 @@ class AuthenticationEndpointTests(TestCase):
             confirmed_password=confirmed_password,
         )
         self.assertEqual(response.status_code, 400)
-        self.assertIn(expected_field, response.data)
+        self.assertEqual(response.data.get(expected_field), ['Passwords do not match'])
         self.assertFalse(User.objects.filter(username=username).exists())
 
     def validate_token_cookies(self, response, refresh_expected=True):
