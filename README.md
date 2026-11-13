@@ -132,22 +132,39 @@ macOS / Linux:
 source .venv/bin/activate
 ```
 
+
 ### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure environment variables
+### 4. Environment configuration(.env)
 
-Create a `.env` file in the repository root:
+1. Copy the provided template file to create your local .env file:
 
-```dotenv
-GEMINI_API_KEY=your_api_key_here
-# Optional overrides:
-# GEMINI_MODEL=gemini-3.8-flash
-# WHISPER_MODEL=base
+macOS / Linux / Git Bash:
+
+```bash
+cp .env.template .env
 ```
+
+Windows PowerShell:
+
+```powershell
+Copy-Item .env.template .env
+```
+
+Windows Command Prompt:
+
+```cmd
+copy .env.template .env
+```
+
+2. Open the newly created .env file and insert your actual credentials:
+
+# Gemini API Key for quiz generation
+GEMINI_API_KEY=dein_gemini_api_key_hier_einfügen
 
 `GEMINI_API_KEY` is required for quiz generation. Never commit API keys or real credentials; `.env` is ignored by Git. Model availability and API access depend on your Google account.
 
