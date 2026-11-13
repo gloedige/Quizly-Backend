@@ -132,22 +132,42 @@ macOS / Linux:
 source .venv/bin/activate
 ```
 
+
 ### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure environment variables
+### 4. Environment configuration(.env)
 
-Create a `.env` file in the repository root:
+1. Copy the provided template file to create your local .env file:
 
-```dotenv
-GEMINI_API_KEY=your_api_key_here
-# Optional overrides:
-# GEMINI_MODEL=gemini-3.8-flash
-# WHISPER_MODEL=base
+macOS / Linux / Git Bash:
+
+```bash
+cp .env.template .env
 ```
+
+Windows PowerShell:
+
+```powershell
+Copy-Item .env.template .env
+```
+
+Windows Command Prompt:
+
+```cmd
+copy .env.template .env
+```
+
+2. Open the newly created .env file and insert your actual credentials:
+
+	# Django Secret Key 
+	DJANGO_SECRET_KEY=dein_django_secret_key_hier_einfügen
+
+	# Gemini API Key for quiz generation
+	GEMINI_API_KEY=dein_gemini_api_key_hier_einfügen
 
 `GEMINI_API_KEY` is required for quiz generation. Never commit API keys or real credentials; `.env` is ignored by Git. Model availability and API access depend on your Google account.
 
@@ -166,7 +186,7 @@ Clone and serve the [separate frontend](https://github.com/Developer-Akademie-Ba
 
 If your frontend version provides a guest login, create a corresponding user separately and adjust that version's guest-login configuration. Do not publish real credentials. The desired frontend page size is `PAGE_SIZE = 3`; check your frontend version before adding or using this setting. The backend does not currently configure pagination.
 
-The frontend and API may run on different origins. The current backend does not configure CORS; browser requests from a separate origin therefore need appropriate CORS and credential settings, or a suitable same-origin reverse proxy. See the [authentication notes](#authentication) for cookie requirements.
+The frontend and API may run on different origins. The current backend is configured for CORS; browser requests from the usual origins should work without CORS errors. Otherwise, the CORS_ALLOWED_ORIGINS setting in settings.py needs to be extended. See the [authentication notes](#authentication) for cookie requirements.
 
 ## Authentication
 
