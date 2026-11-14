@@ -243,7 +243,7 @@ Generate a quiz with `POST /api/quizzes/`:
 }
 ```
 
-Replace `VIDEO_ID` with a valid 11-character YouTube video ID. Creation returns the quiz with its questions when generation succeeds. A generation failure returns a `400` response; check the video, environment, model availability, and server diagnostics.
+Replace `VIDEO_ID` with a valid 11-character YouTube video ID. Creation returns the quiz with its questions when generation succeeds. Invalid URLs or request data return `400`; an internal quiz-generation failure returns `500`. Check the video, environment, model availability, and server diagnostics when generation fails.
 
 Update a quiz with `PATCH /api/quizzes/{id}/`:
 
