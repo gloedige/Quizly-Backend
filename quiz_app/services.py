@@ -10,10 +10,7 @@ from urllib.parse import parse_qs, urlparse
 
 import logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
-)
+logger = logging.getLogger(__name__)
 
 QUIZ_PROMPT = """Based on the following transcript, generate a quiz in valid JSON format.
 The quiz must follow this exact structure:
@@ -77,7 +74,6 @@ def generate_quiz_content(youtube_url):
 
 def _download_audio(youtube_url, temp_directory):
     """Download the best available YouTube audio track to a temporary directory."""
-    logger = logging.getLogger(__name__)
     import yt_dlp
 
     template = str(Path(temp_directory) / 'source.%(ext)s')
@@ -99,7 +95,6 @@ def _download_audio(youtube_url, temp_directory):
         logger.error('YouTube audio download failed: %s: %s', youtube_url, e)
         raise
     return audio_path
-
 
 def _find_downloaded_audio(temp_directory):
     """Return the downloaded audio file or raise when no file was produced."""
