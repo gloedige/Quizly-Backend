@@ -14,6 +14,11 @@ from quiz_app.api.serializers import (
 )
 from quiz_app.models import Question, Quiz
 from quiz_app.services import generate_quiz_content
+from quiz_app.exceptions import QuizGenerationError
+
+# Standard Imports
+import logging
+logger = logging.getLogger(__name__)
 
 
 class QuizViewSet(viewsets.ModelViewSet):
@@ -55,7 +60,8 @@ class QuizViewSet(viewsets.ModelViewSet):
             generated = GeneratedQuizSerializer(data=generate_quiz_content(canonical_url))
             generated.is_valid(raise_exception=True)
         except Exception as error:
-            raise serializers.ValidationError('Unable to generate a quiz from this video.') from error
+            logger.exception('Quiz generation failed')
+            raise QuizGenerationError from error
         return save_generated_quiz(owner, canonical_url, generated.validated_data)
 
 

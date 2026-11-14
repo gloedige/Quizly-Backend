@@ -62,11 +62,11 @@ class QuizEndpointTests(TestCase):
 		self.assertEqual(response.status_code, 400)
 		generate.assert_not_called()
 
-	def test_create_quiz_generation_failure_returns_400_without_saving(self):
-		"""A provider failure returns 400 and does not create a quiz."""
+	def test_create_quiz_generation_failure_returns_500_without_saving(self):
+		"""A provider failure returns 500 and does not create a quiz."""
 		with patch('quiz_app.api.views.generate_quiz_content', side_effect=RuntimeError('provider unavailable')):
 			response = self.client.post('/api/quizzes/', {'url': 'https://youtu.be/dQw4w9WgXcQ'}, format='json')
-		self.assertEqual(response.status_code, 400)
+		self.assertEqual(response.status_code, 500)
 		self.assertEqual(self.client.get('/api/quizzes/').data, [])
 
 	def test_create_quiz_rejects_wrong_question_count(self):
@@ -74,7 +74,7 @@ class QuizEndpointTests(TestCase):
 		invalid_quiz = {**GENERATED_QUIZ, 'questions': GENERATED_QUESTIONS[:-1]}
 		with patch('quiz_app.api.views.generate_quiz_content', return_value=invalid_quiz):
 			response = self.client.post('/api/quizzes/', {'url': 'https://youtu.be/dQw4w9WgXcQ'}, format='json')
-		self.assertEqual(response.status_code, 400)
+		self.assertEqual(response.status_code, 500)
 		self.assertEqual(self.client.get('/api/quizzes/').data, [])
 
 	def test_create_quiz_rejects_duplicate_options(self):
@@ -83,7 +83,7 @@ class QuizEndpointTests(TestCase):
 		invalid_quiz = {**GENERATED_QUIZ, 'questions': questions}
 		with patch('quiz_app.api.views.generate_quiz_content', return_value=invalid_quiz):
 			response = self.client.post('/api/quizzes/', {'url': 'https://youtu.be/dQw4w9WgXcQ'}, format='json')
-		self.assertEqual(response.status_code, 400)
+		self.assertEqual(response.status_code, 500)
 		self.assertEqual(self.client.get('/api/quizzes/').data, [])
 
 	def test_create_quiz_requires_authentication(self):
