@@ -92,8 +92,7 @@ def _download_audio(youtube_url, temp_directory):
         audio_path = str(_find_downloaded_audio(temp_directory))
         logger.info('YouTube audio download completed: %s', audio_path)
     except Exception as e:
-        logger.error('YouTube audio download failed: %s: %s', youtube_url, e)
-        raise
+        raise RuntimeError('YouTube audio download failed.') from e
     return audio_path
 
 def _find_downloaded_audio(temp_directory):
