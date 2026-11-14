@@ -13,6 +13,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 # Local imports
 from auth_app.api.authentication import CookieJWTAuthentication
+from core.settings import CUSTOM_ACCESS_COOKIE_LIFETIME, CUSTOM_REFRESH_COOKIE_LIFETIME
 from .serializers import LoginSerializer, RegistrationSerializer
 
 
@@ -24,19 +25,28 @@ def set_auth_cookies(response, access_token, new_refresh_token):
         response.set_cookie(
             key='access_token',
             value=access_token,
+            max_age=CUSTOM_ACCESS_COOKIE_LIFETIME,
             httponly=True,
             secure=True,
-            samesite='Lax'
+            samesite='Lax',
+            path='/',
         )
 
     if new_refresh_token:
         response.set_cookie(
             key='refresh_token',
             value=new_refresh_token,
+            max_age=CUSTOM_REFRESH_COOKIE_LIFETIME,
             httponly=True,
             secure=True,
-            samesite='Lax'
+            samesite='Lax',
+            path='/',
         )
+    return response
+
+def delete_session_cookies(response):
+    response.delete_cookie('access_token', path='/')
+    response.delete_cookie('refresh_token', path='/')
     return response
 
 class RegistrationView(APIView):
@@ -112,6 +122,7 @@ class CookieRefreshView(TokenRefreshView):
             return self.respond_with_token_error()
 
         response = Response({"detail": "Token refreshed"}, status=status.HTTP_200_OK)
+        response = delete_session_cookies(response)
         data = serializer.validated_data
         return set_auth_cookies(response, data.get('access'), data.get('refresh'))
 
@@ -160,9 +171,9 @@ class CookieLogoutView(APIView):
         response = Response(
             {"detail": "Log-Out successfully! All Tokens will be deleted. Refresh token is now invalid."}, 
             status=status.HTTP_200_OK)
-        response.delete_cookie('access_token')
-        response.delete_cookie('refresh_token')
+        delete_session_cookies(response)
         return response
+
 
     def blacklist_refresh_cookie(self, refresh_token):
         """Blacklist a valid refresh cookie; tolerate its absence or invalidity."""

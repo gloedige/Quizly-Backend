@@ -8,6 +8,10 @@ from pathlib import Path
 from threading import Lock
 from urllib.parse import parse_qs, urlparse
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 QUIZ_PROMPT = """Based on the following transcript, generate a quiz in valid JSON format.
 The quiz must follow this exact structure:
 {
@@ -75,15 +79,22 @@ def _download_audio(youtube_url, temp_directory):
     template = str(Path(temp_directory) / 'source.%(ext)s')
     options = {
                 'format': f'bestaudio[filesize<{MAX_VIDEO_SIZE}]/bestaudio[filesize_approx<{MAX_VIDEO_SIZE}]',
-                'outtmpl': template, 
-                'quiet': True, 
+                'outtmpl': template,
+                'quiet': True,
                 'noplaylist': True,
                 'match_filter': yt_dlp.utils.match_filter_func(f'duration <= {MAX_VIDEO_LENGTH}'),
+                'logger': logger,
             }
-    with yt_dlp.YoutubeDL(options) as downloader:
-        downloader.download([youtube_url])
-    return str(_find_downloaded_audio(temp_directory))
-
+    try:
+        logger.info(f"Starting download for: {youtube_url}")
+        with yt_dlp.YoutubeDL(options) as downloader:
+            downloader.download([youtube_url])
+        audio_path = str(_find_downloaded_audio(temp_directory))
+        logger.info('YouTube audio download completed: %s', audio_path)
+    except Exception as e:
+        logger.error('YouTube audio download failed: %s: %s', youtube_url, e)
+        raise
+    return audio_path
 
 def _find_downloaded_audio(temp_directory):
     """Return the downloaded audio file or raise when no file was produced."""
